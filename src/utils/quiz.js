@@ -28,6 +28,8 @@ export function normalizeText(value) {
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .replace(/[\u2013\u2014]/g, '-')
+    .replace(/(\d)(\p{L})/gu, '$1 $2')
+    .replace(/(\p{L})(\d)/gu, '$1 $2')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -39,7 +41,8 @@ function containsAny(text, variants) {
 
 function scorePresence(text, expectedItems) {
   const normalized = normalizeText(text);
-  const hits = expectedItems.filter((item) => normalized.includes(normalizeText(item))).length;
+  const searchable = ` ${normalized} `;
+  const hits = expectedItems.filter((item) => searchable.includes(` ${normalizeText(item)} `)).length;
   return { hits, total: expectedItems.length };
 }
 
@@ -56,9 +59,10 @@ function scoreRecipe(text, cocktail) {
   }
 
   const ingredientNames = cocktail.ingredients.map((item) => item.name);
-  const ingredientAmounts = cocktail.ingredients.map((item) => `${item.amount} ${item.unit}`);
-  const ingredientScore = scorePresence(text, ingredientNames);
-  const amountScore = scorePresence(text, ingredientAmounts);
+  const ingredientAmounts = cocktail.ingredients.map((item) => String(item.amount));
+  const ingredientScore = scorePresence(normalizedText, ingredientNames);
+  // Единица измерения необязательна: «45 джин» и «45 мл джин» равнозначны.
+  const amountScore = scorePresence(normalizedText, ingredientAmounts);
   const totalSignals = ingredientScore.hits + amountScore.hits;
 
   if (ingredientScore.hits === ingredientScore.total && amountScore.hits === amountScore.total) {

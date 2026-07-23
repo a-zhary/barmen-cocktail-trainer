@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AnswerStep from './components/AnswerStep';
-import { cocktails, fieldOrder, fieldOptions } from './data/cocktails';
+import { cocktails, fieldOrder } from './data/cocktails';
 import { assessAnswer, deckTitle, normalizeText } from './utils/quiz';
 
 function shuffle(items) {
@@ -32,6 +32,7 @@ export default function App() {
   const [stepIndex, setStepIndex] = useState(0);
   const [results, setResults] = useState(() => emptyStepState());
   const [completedCards, setCompletedCards] = useState(0);
+  const [sessionFinished, setSessionFinished] = useState(false);
 
   const currentCard = deck[cardIndex];
   const isComplete = stepIndex >= fieldOrder.length;
@@ -52,7 +53,10 @@ export default function App() {
 
   const activeField = fieldOrder[stepIndex] ?? null;
 
-  const progressLabel = useMemo(() => `${completedCards + 1}/${cocktails.length}`, [completedCards]);
+  const progressLabel = useMemo(
+    () => `${sessionFinished ? cocktails.length : completedCards + 1}/${cocktails.length}`,
+    [completedCards, sessionFinished],
+  );
 
   function submitAnswer(event) {
     event.preventDefault();
@@ -88,8 +92,10 @@ export default function App() {
     const reachedEnd = nextIndex >= deck.length;
 
     if (reachedEnd) {
-      setDeck((previousDeck) => createDeck(previousDeck, currentCard?.id));
-      setCardIndex(0);
+      setCompletedCards(cocktails.length);
+      setSessionFinished(true);
+      console.info('[cocktail-trainer] session finished', { totalCards: cocktails.length });
+      return;
     } else {
       setCardIndex(nextIndex);
     }
@@ -106,6 +112,7 @@ export default function App() {
     setStepIndex(0);
     setResults(emptyStepState());
     setCompletedCards(0);
+    setSessionFinished(false);
     console.info('[cocktail-trainer] session reset');
   }
 
@@ -117,28 +124,52 @@ export default function App() {
     );
   }
 
+  if (sessionFinished) {
+    return (
+      <main className="app-shell">
+        <section className="finish-card">
+          <span className="finish-card__mark">✓</span>
+          <p className="card-kicker">Тренировка завершена</p>
+          <h1>Все карточки пройдены</h1>
+          <p>Вы проверили рецептуры всех {cocktails.length} коктейлей. Новый круг начнётся только по вашему выбору.</p>
+          <button className="primary-button" type="button" onClick={resetSession}>Пройти ещё раз <span>↻</span></button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <section className="trainer-frame">
         <header className="trainer-topbar">
-          <div>
-            <p className="eyebrow">Cocktail recipe trainer</p>
-            <h1>Карточки рецептур коктейлей</h1>
+          <button className="round-button" type="button" aria-label="Назад">←</button>
+          <div className="trainer-progress">
+            <strong>{progressLabel}</strong>
+            <span>Прогресс</span>
+            <div className="progress-track"><i style={{ width: `${(completedCards + 1) / cocktails.length * 100}%` }} /></div>
           </div>
           <div className="trainer-meta">
-            <span className="meta-pill">Карточка {progressLabel}</span>
-            <button className="ghost-button" type="button" onClick={resetSession}>
-              Сбросить
-            </button>
+            <button className="round-button" type="button" onClick={resetSession} aria-label="Сбросить тренировку">↻</button>
           </div>
         </header>
 
         <article className="cocktail-card">
           <div className="cocktail-card__shine" />
           <div className="cocktail-card__content">
-            <p className="card-kicker">Случайная карточка</p>
-            <h2>{deckTitle(currentCard)}</h2>
-            <p className="card-description">Введите ответы по очереди. Каждый следующий блок открывается после проверки предыдущего.</p>
+            <div className="cocktail-copy">
+              <p className="card-kicker">Классика · тренировка</p>
+              <h1>{deckTitle(currentCard)}</h1>
+              <p className="card-description">Восстановите рецепт по памяти. Каждый следующий шаг откроется после проверки.</p>
+            </div>
+
+            <div className="cocktail-visual">
+              <img
+                key={currentCard.id}
+                src={`/cocktails/${currentCard.id}.webp`}
+                alt={`Коктейль «${currentCard.name}»`}
+              />
+              <span className="cocktail-visual__glow" aria-hidden="true" />
+            </div>
 
             <div className="steps-stack">
               {fieldOrder.map((field, index) => {
@@ -152,7 +183,6 @@ export default function App() {
                     value={state.value}
                     status={state.verdict}
                     expected={state.expected}
-                    options={fieldOptions[field.key]}
                     onChange={(event) => {
                       const nextValue = event.target.value;
                       setResults((previous) => ({
@@ -163,6 +193,7 @@ export default function App() {
                     onSubmit={submitAnswer}
                     isActive={isActive}
                     isLocked={isLocked}
+                    isFuture={index > stepIndex}
                   />
                 );
               })}
@@ -170,14 +201,16 @@ export default function App() {
 
             {isComplete ? (
               <div className="card-actions">
-                <p className="completion-copy">Карточка пройдена. Переходите к следующей.</p>
+                <p className="completion-copy">
+                  {cardIndex === deck.length - 1 ? 'Последняя карточка пройдена.' : 'Карточка пройдена. Переходите к следующей.'}
+                </p>
                 <button className="primary-button" type="button" onClick={nextCard}>
-                  Следующая карточка
+                  {cardIndex === deck.length - 1 ? 'Завершить тест' : 'Следующая карточка'}
                 </button>
               </div>
             ) : (
               <div className="card-actions card-actions--idle">
-                <span>Осталось шагов: {fieldOrder.length - stepIndex}</span>
+                <span>Шаг {stepIndex + 1} из {fieldOrder.length}</span>
               </div>
             )}
           </div>

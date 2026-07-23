@@ -5,14 +5,12 @@ export default function AnswerStep({
   value,
   status,
   expected,
-  options,
   onChange,
   onSubmit,
   isActive,
   isLocked,
+  isFuture,
 }) {
-  const listId = `${field.key}-options`;
-
   if (isLocked) {
     return (
       <section className={`answer-step is-${status}`}>
@@ -22,6 +20,16 @@ export default function AnswerStep({
         </div>
         <div className="answer-step__value">{value || 'Нет ответа'}</div>
         <div className="answer-step__expected">Правильный ответ: {expected || 'нет'}</div>
+      </section>
+    );
+  }
+
+  if (isFuture) {
+    return (
+      <section className="answer-step answer-step--future">
+        <span className="answer-step__number">{field.label.split('.')[0]}</span>
+        <span className="answer-step__label">{field.label.replace(/^\d+\.\s*/, '')}</span>
+        <span className="answer-step__lock">⌁</span>
       </section>
     );
   }
@@ -36,20 +44,14 @@ export default function AnswerStep({
         id={field.key}
         name={field.key}
         className="answer-step__input"
-        list={listId}
         value={value}
         onChange={onChange}
-        placeholder="Начните ввод или выберите из списка"
+        placeholder="Введите ответ"
         autoComplete="off"
         autoFocus={isActive}
       />
-      <datalist id={listId}>
-        {options.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
       <button className="answer-step__submit" type="submit" disabled={!value.trim()}>
-        Проверить
+        <span>Проверить</span><span aria-hidden="true">→</span>
       </button>
     </form>
   );
