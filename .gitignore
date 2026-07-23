@@ -4,3 +4,6 @@ dist
 .idea
 .opencode
 output
+.ai-factory
+.ai-factory.json
+opencode.json
